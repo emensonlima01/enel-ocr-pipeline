@@ -1,4 +1,4 @@
-# Enel OCR Paddle (Python)
+# Enel OCR Pipeline (Python)
 ![Author](https://img.shields.io/badge/author-Emenson%20Lima%20Germano-0A66C2)
 ![License](https://img.shields.io/badge/license-MIT-0A66C2)
 
