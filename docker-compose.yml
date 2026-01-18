@@ -1,0 +1,16 @@
+services:
+  enel-ocr-api:
+    build:
+      context: .
+      args:
+        PYTHON_VERSION: 3.11.9
+    image: enel-ocr-api:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - PADDLEOCR_HOME=/root/.paddleocr
+    volumes:
+      - paddleocr-data:/root/.paddleocr
+
+volumes:
+  paddleocr-data:

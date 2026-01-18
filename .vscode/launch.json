@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run API",
+      "type": "python",
+      "request": "launch",
+      "module": "enel_ocr.api",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ]
+}
