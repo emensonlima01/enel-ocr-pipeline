@@ -18,6 +18,7 @@ from .mappers import personal_data as personal_data_mapper
 from .mappers import reading_days as reading_days_mapper
 from .mappers import lighting_responsible as lighting_responsible_mapper
 from .mappers import supply_type as supply_type_mapper
+from .mappers import tariff_flags
 from .mappers import tax_info
 from .mappers import tax_items
 from .mappers import previous_reading as previous_reading_mapper
@@ -53,6 +54,7 @@ def run_pipeline(pdf_bytes: bytes, ocr) -> Invoice:
     customer_tax_number = ""
     lighting_responsible = ""
     important_message = ""
+    tariff_flag_periods = []
     coords = [(region.x, region.y, region.width, region.height) for region in regions]
     region_images = cropper.crop_many_ndarray(coords)
     for region, image_np in zip(regions, region_images):
@@ -109,6 +111,9 @@ def run_pipeline(pdf_bytes: bytes, ocr) -> Invoice:
             texts, _boxes, _scores = run_ocr(ocr, image_np)
             important_message = important_message_mapper.map(texts)
 
+    if important_message:
+        tariff_flag_periods = tariff_flags.map(important_message)
+
     base_tax_info = tax_info_result or tax_info.TaxInfo(
         invoice_number="",
         invoice_issue_date="",
@@ -147,4 +152,5 @@ def run_pipeline(pdf_bytes: bytes, ocr) -> Invoice:
         ),
         tax_info=base_tax_info,
         important_message=important_message,
+        tariff_flag_periods=tariff_flag_periods,
     )

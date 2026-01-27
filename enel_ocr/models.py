@@ -59,6 +59,13 @@ class ReadingDates:
 
 
 @dataclass(frozen=True)
+class TariffFlagPeriod:
+    flag: str
+    start_date: str
+    end_date: str
+
+
+@dataclass(frozen=True)
 class Invoice:
     invoice_items: list[InvoiceItem]
     meter_items: list[MeterItem]
@@ -75,3 +82,4 @@ class Invoice:
     reading_dates: ReadingDates
     tax_info: TaxInfo
     important_message: str
+    tariff_flag_periods: list[TariffFlagPeriod]
