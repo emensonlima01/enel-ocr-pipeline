@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from .coords import build_regions
+from .detector import detect_layout
 from .mappers import amount_due as amount_due_mapper
 from .mappers import billing_period as billing_period_mapper
 from .mappers import classification_consumer_unit
@@ -29,8 +30,9 @@ from .ocr.pdf import pdf_page_to_image_bytes
 
 def run_pipeline(pdf_bytes: bytes, ocr) -> Invoice:
     image_bytes = pdf_page_to_image_bytes(pdf_bytes, page_number=1)
-    regions = build_regions()
     cropper = ImageCropper(image_bytes)
+    layout_id = detect_layout(ocr, cropper)
+    regions = build_regions(layout_id)
 
     classification_result = ""
     supply_type = ""
@@ -69,10 +71,10 @@ def run_pipeline(pdf_bytes: bytes, ocr) -> Invoice:
             supply_type = supply_type_mapper.map(texts)
         elif region.description == "NUMERO_INSTALACAO":
             texts, _boxes, _scores = run_ocr(ocr, image_np)
-            installation_number = installation_number_mapper.map(texts)
+            installation_number = installation_number_mapper.map(texts, layout_id=layout_id)
         elif region.description == "NUMERO_CLIENTE":
             texts, _boxes, _scores = run_ocr(ocr, image_np)
-            customer_number = customer_number_mapper.map(texts)
+            customer_number = customer_number_mapper.map(texts, layout_id=layout_id)
         elif region.description == "PERIODO_FATURAMENTO":
             texts, _boxes, _scores = run_ocr(ocr, image_np)
             billing_period = billing_period_mapper.map(texts)

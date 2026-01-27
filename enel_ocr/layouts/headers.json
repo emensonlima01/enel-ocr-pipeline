@@ -1,0 +1,34 @@
+{
+  "v1": {
+    "anchors": [
+      "INSTALAÇÃO",
+      "INSTALACAO",
+      "N DO CLIENTE",
+      "Nº DO CLIENTE",
+      "NUMERO DO CLIENTE",
+      "NÚMERO DO CLIENTE"
+    ],
+    "region": {
+      "x": 408,
+      "y": 206,
+      "w": 168,
+      "h": 42
+    }
+  },
+  "v2": {
+    "anchors": [
+      "MÊS/ANO",
+      "MES/ANO",
+      "MÊS\\ANO",
+      "MES\\ANO",
+      "MÊS ANO",
+      "MES ANO"
+    ],
+    "region": {
+      "x": 408,
+      "y": 206,
+      "w": 168,
+      "h": 42
+    }
+  }
+}

@@ -13,6 +13,10 @@ class ImageCropper:
         self._image = Image.open(io.BytesIO(image_bytes))
         self._image.load()
 
+    @property
+    def size(self) -> Tuple[int, int]:
+        return self._image.size
+
     def crop(self, coord: Tuple[int, int, int, int]) -> bytes:
         x, y, width, height = coord
         box = (x, y, x + width, y + height)
