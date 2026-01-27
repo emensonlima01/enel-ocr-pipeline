@@ -51,6 +51,14 @@ class TaxInfo:
 
 
 @dataclass(frozen=True)
+class CreditInfo:
+    injected_hfp_kwh: float
+    used_kwh: float
+    updated_kwh: float
+    expiring_kwh: float
+
+
+@dataclass(frozen=True)
 class ReadingDates:
     previous_reading: str
     current_reading: str
@@ -83,3 +91,4 @@ class Invoice:
     tax_info: TaxInfo
     important_message: str
     tariff_flag_periods: list[TariffFlagPeriod]
+    credit_info: CreditInfo
