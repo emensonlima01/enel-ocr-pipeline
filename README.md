@@ -1,59 +1,53 @@
-﻿# Enel OCR Pipeline (Python)
-![Author](https://img.shields.io/badge/author-Emenson%20Lima%20Germano-0A66C2)
-![License](https://img.shields.io/badge/license-MIT-0A66C2)
+# Enel OCR Pipeline (Python)
 
-Pipeline de OCR para faturas Enel em PDF. Extrai campos estruturados
-(dados cadastrais, leituras, tributos, itens de fatura) via recortes por
-coordenadas. O projeto entrega JSON pronto para integracao via API.
+Pipeline de OCR para faturas Enel em PDF. Extrai campos estruturados via recortes por coordenadas e mapeadores especializados, entregando JSON pronto para integração via API.
 
-## Principais recursos
-- OCR focado no layout Enel (pagina 1)
-- Recortes por coordenadas para reduzir ruido
-- Detecao automatica de layout (v1/v2) por cabecalho
-- Saida JSON pronta para consumo
-- API HTTP simples (Flask + Gunicorn)
-- Deploy rapido com Docker Compose
+## Visão geral
+- OCR focado no layout Enel (página 1).
+- Recortes por coordenadas para reduzir ruído.
+- Detecção automática de layout (v1/v2) via cabeçalho.
+- Saída estruturada com tipagem via `dataclasses`.
+- API HTTP simples (Flask + Gunicorn).
+- Deploy rápido com Docker Compose.
 
-## Como funciona (pipeline)
-1. PDF -> imagem (PyMuPDF) na pagina 1 com 300 DPI.
-2. Detecao de layout com `enel_ocr/layouts/headers.json`.
-3. Recorte de regioes definidas em `enel_ocr/layouts/v1.json` ou `v2.json`.
+## Fluxo do pipeline
+1. PDF -> imagem (PyMuPDF) da página 1 com 300 DPI.
+2. Detecção de layout usando `enel_ocr/layouts/headers.json`.
+3. Recorte de regiões definidas em `enel_ocr/layouts/v1.json` ou `v2.json`.
 4. OCR com PaddleOCR (lang=pt, PP-OCRv3).
-5. Mapeadores convertem texto OCR em estruturas tipadas (dataclasses).
-6. Resposta JSON (decimais serializados como string na API).
+5. Mapeadores convertem textos em estruturas tipadas.
+6. Resposta JSON pronta para consumo na API.
 
 ## Estrutura do projeto
-- `enel_ocr/` pacote principal
-- `enel_ocr/api.py` API Flask + serializacao
-- `enel_ocr/pipeline.py` orquestracao do OCR
-- `enel_ocr/ocr/` conversao PDF->imagem, recorte e engine OCR
-- `enel_ocr/mappers/` extracao de campos
-- `enel_ocr/layouts/` coordenadas e regras de deteccao
-- `scripts/run_pipeline.py` execucao local do pipeline
-- `Dockerfile` e `docker-compose.yml` para deploy
+- `enel_ocr/` pacote principal.
+- `enel_ocr/api.py` API Flask + serialização.
+- `enel_ocr/pipeline.py` orquestração do OCR.
+- `enel_ocr/ocr/` conversão PDF->imagem, recorte e engine OCR.
+- `enel_ocr/mappers/` extração e parsing dos campos.
+- `enel_ocr/layouts/` coordenadas e regras de detecção.
+- `scripts/run_pipeline.py` execução local do pipeline.
+- `Dockerfile` e `docker-compose.yml` para deploy.
 
 ## Requisitos
-- Docker + Docker Compose (recomendado)
-- Ou Python 3.11
-- Dependencias de sistema (Linux) que o Docker ja instala: `libgl1`,
-  `libglib2.0-0`, `libgomp1`, `libopenblas0`.
+- Docker + Docker Compose (recomendado) ou Python 3.11.
+- Dependências de sistema (Linux) incluídas no Docker:
+  - `libgl1`, `libglib2.0-0`, `libgomp1`, `libopenblas0`.
 
-## Execucao rapida (Docker)
+## Execução rápida (Docker)
 ```bash
 docker compose up --build
 ```
 
-Primeira execucao: download dos modelos do PaddleOCR pode demorar alguns minutos.
-No `docker-compose.yml`, os modelos ficam no volume `paddleocr-data`.
+Primeira execução: download dos modelos do PaddleOCR pode demorar alguns minutos. No `docker-compose.yml`, os modelos ficam no volume `paddleocr-data`.
 
-Teste rapido:
+Teste rápido:
 ```bash
 curl -X POST http://localhost:8000/invoice \
   -H "Content-Type: application/pdf" \
   --data-binary @sua_fatura.pdf
 ```
 
-## Execucao local (Python)
+## Execução local (Python)
 ```bash
 pip install -r requirements.txt
 python -m enel_ocr.api
@@ -71,7 +65,7 @@ Ajuste o caminho do PDF em `scripts/run_pipeline.py` antes de executar.
 - Corpo: bytes do PDF
 - Respostas:
   - `200` JSON com a estrutura `Invoice`
-  - `400` erro de validacao (content-type, body vazio ou PDF invalido)
+  - `400` erro de validação (content-type, body vazio ou PDF inválido)
 
 Exemplo de resposta (resumo):
 ```json
@@ -95,7 +89,7 @@ Exemplo de resposta (resumo):
 ```
 
 ## Modelo de dados
-A API devolve JSON. Ao usar `run_pipeline` diretamente, os campos numericos sao `Decimal` (exceto `CreditInfo`, que usa `float`).
+A API devolve JSON. Ao usar `run_pipeline` diretamente, campos numéricos são `Decimal` (exceto `CreditInfo`, que usa `float`).
 
 ### Invoice
 - `invoice_items`: lista de `InvoiceItem`
@@ -171,27 +165,26 @@ A API devolve JSON. Ao usar `run_pipeline` diretamente, os campos numericos sao 
 - `expiring_kwh`: float
 
 ## Layouts e coordenadas
-- Os recortes sao definidos em `enel_ocr/layouts/v1.json` e `v2.json`.
-- A deteccao de layout usa `enel_ocr/layouts/headers.json` com um recorte de
-  cabecalho e palavras-ancora.
-- As coordenadas sao em pixels para imagem com 300 DPI (ver `DEFAULT_DPI`).
-  Se mudar o DPI, ajuste as coordenadas.
-- No layout `v2`, `NUMERO_INSTALACAO` e `NUMERO_CLIENTE` usam a mesma regiao.
-  Os mappers separam os dois valores.
+- Os recortes são definidos em `enel_ocr/layouts/v1.json` e `v2.json`.
+- A detecção de layout usa `enel_ocr/layouts/headers.json` com um recorte de cabeçalho e palavras-âncora.
+- As coordenadas são em pixels para imagem com 300 DPI (ver `DEFAULT_DPI`).
+- Se mudar o DPI, ajuste as coordenadas.
+- No layout `v2`, `NUMERO_INSTALACAO` e `NUMERO_CLIENTE` usam a mesma região, e os mappers separam os valores.
 
-## Configuracao
-- `WEB_CONCURRENCY`: numero de workers do Gunicorn (padrao: numero de CPUs)
-- `PADDLEOCR_HOME`: diretorio de cache de modelos (padrao `~/.paddleocr`)
-- `OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS`, `MKL_NUM_THREADS`, `NUMEXPR_NUM_THREADS`:
-  limite de threads do backend numerico (opcional)
+## Configuração
+- `WEB_CONCURRENCY`: número de workers do Gunicorn (padrão: CPUs).
+- `WEB_THREADS`: número de threads por worker (padrão: 1).
+- `OCR_LOCK`: `1` (padrão) para serializar OCR por worker, `0` para desativar.
+- `PADDLEOCR_HOME`: diretório de cache de modelos (padrão `~/.paddleocr`).
+- `OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS`, `MKL_NUM_THREADS`, `NUMEXPR_NUM_THREADS`: limite de threads do backend numérico.
 
-## Observacoes e limitacoes
+## Observações e limitações
 - Layout baseado em coordenadas fixas; se o template mudar, ajuste os JSONs.
-- Processa apenas a primeira pagina do PDF.
-- Qualidade de OCR depende da resolucao do PDF/scan.
+- Processa apenas a primeira página do PDF.
+- Qualidade de OCR depende da resolução do PDF/scan.
 
-## Licenca
-MIT. Veja `LICENSE`.
+## Licença
+MIT. Veja `LICENSE` e `NOTICE`.
 
 ## Autor
 - Emenson Lima Germano
