@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 from ..models import CreditInfo
-from ._utils import normalize_text
+from ._utils import normalize_text, parse_decimal
 
 
 def _extract_kwh(text: str, pattern: str) -> float | None:
@@ -11,9 +11,16 @@ def _extract_kwh(text: str, pattern: str) -> float | None:
     if not match:
         return None
     raw = match.group(1)
-    raw = raw.replace(",", "")
+    cleaned = "".join(ch for ch in raw if ch.isdigit() or ch in ".,-")
+    if cleaned.count(".") > 1 and "," not in cleaned:
+        parts = cleaned.split(".")
+        cleaned = "".join(parts[:-1]) + "." + parts[-1]
+    if cleaned.count(",") > 1 and "." not in cleaned:
+        parts = cleaned.split(",")
+        cleaned = "".join(parts[:-1]) + "," + parts[-1]
+    parsed = parse_decimal(cleaned)
     try:
-        return float(raw)
+        return float(parsed)
     except ValueError:
         return None
 
