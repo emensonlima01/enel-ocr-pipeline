@@ -62,61 +62,104 @@ def run_pipeline(pdf_bytes: bytes, ocr) -> Invoice:
         updated_kwh=0.0,
         expiring_kwh=0.0,
     )
-    coords = [(region.x, region.y, region.width, region.height) for region in regions]
-    region_images = cropper.crop_many_ndarray(coords)
-    for region, image_np in zip(regions, region_images):
-        if region.description == "DESCRICAO_FATURAMENTO":
-            texts, boxes, _scores = run_ocr(ocr, image_np)
-            invoice_items_result = invoice_items.map(texts, boxes)
-            meter_items_result = meter_items.map(texts, boxes)
-        elif region.description == "TRIBUTOS":
-            texts, boxes, _scores = run_ocr(ocr, image_np)
-            tax_items_result = tax_items.map(texts, boxes)
-        elif region.description == "CLASSIFICACAO_UNIDADE_CONSUMIDORA":
-            texts, _boxes, _scores = run_ocr(ocr, image_np)
-            classification_result = classification_consumer_unit.map(texts)
-        elif region.description == "TIPO_FORNECIMENTO":
-            texts, _boxes, _scores = run_ocr(ocr, image_np)
-            supply_type = supply_type_mapper.map(texts)
-        elif region.description == "NUMERO_INSTALACAO":
-            texts, _boxes, _scores = run_ocr(ocr, image_np)
-            installation_number = installation_number_mapper.map(texts, layout_id=layout_id)
-        elif region.description == "NUMERO_CLIENTE":
-            texts, _boxes, _scores = run_ocr(ocr, image_np)
-            customer_number = customer_number_mapper.map(texts, layout_id=layout_id)
-        elif region.description == "PERIODO_FATURAMENTO":
-            texts, _boxes, _scores = run_ocr(ocr, image_np)
-            billing_period = billing_period_mapper.map(texts)
-        elif region.description == "DATA_VENCIMENTO":
-            texts, _boxes, _scores = run_ocr(ocr, image_np)
-            due_date = due_date_mapper.map(texts)
-        elif region.description == "VALOR_PAGAR":
-            texts, _boxes, _scores = run_ocr(ocr, image_np)
-            amount_due = amount_due_mapper.map(texts)
-        elif region.description == "LEITURA_ATUAL":
-            texts, _boxes, _scores = run_ocr(ocr, image_np)
-            current_reading = current_reading_mapper.map(texts)
-        elif region.description == "LEITURA_ANTERIOR":
-            texts, _boxes, _scores = run_ocr(ocr, image_np)
-            previous_reading = previous_reading_mapper.map(texts)
-        elif region.description == "PROXIMA_LEITURA":
-            texts, _boxes, _scores = run_ocr(ocr, image_np)
-            next_reading = next_reading_mapper.map(texts)
-        elif region.description == "DIAS_LEITURA":
-            texts, _boxes, _scores = run_ocr(ocr, image_np)
-            reading_days = reading_days_mapper.map(texts)
-        elif region.description == "DADOS_PESSOAIS":
-            texts, _boxes, _scores = run_ocr(ocr, image_np)
-            customer_name, customer_tax_number = personal_data_mapper.map(texts)
-        elif region.description == "RESPONSAVEL_PELA_ILUMINACAO":
-            texts, _boxes, _scores = run_ocr(ocr, image_np)
-            lighting_responsible = lighting_responsible_mapper.map(texts)
-        elif region.description == "INFORMACOES_TRIBUTARIAS":
-            texts, boxes, _scores = run_ocr(ocr, image_np)
-            tax_info_result = tax_info.map(texts, boxes)
-        elif region.description == "MENSAGEM_IMPORTANTE":
-            texts, _boxes, _scores = run_ocr(ocr, image_np)
-            important_message = important_message_mapper.map(texts)
+
+    def _handle_descricao_faturamento(texts, boxes) -> None:
+        nonlocal invoice_items_result, meter_items_result
+        invoice_items_result = invoice_items.map(texts, boxes)
+        meter_items_result = meter_items.map(texts, boxes)
+
+    def _handle_tributos(texts, boxes) -> None:
+        nonlocal tax_items_result
+        tax_items_result = tax_items.map(texts, boxes)
+
+    def _handle_classificacao_unidade(texts, _boxes) -> None:
+        nonlocal classification_result
+        classification_result = classification_consumer_unit.map(texts)
+
+    def _handle_tipo_fornecimento(texts, _boxes) -> None:
+        nonlocal supply_type
+        supply_type = supply_type_mapper.map(texts)
+
+    def _handle_numero_instalacao(texts, _boxes) -> None:
+        nonlocal installation_number
+        installation_number = installation_number_mapper.map(texts, layout_id=layout_id)
+
+    def _handle_numero_cliente(texts, _boxes) -> None:
+        nonlocal customer_number
+        customer_number = customer_number_mapper.map(texts, layout_id=layout_id)
+
+    def _handle_periodo_faturamento(texts, _boxes) -> None:
+        nonlocal billing_period
+        billing_period = billing_period_mapper.map(texts)
+
+    def _handle_data_vencimento(texts, _boxes) -> None:
+        nonlocal due_date
+        due_date = due_date_mapper.map(texts)
+
+    def _handle_valor_pagar(texts, _boxes) -> None:
+        nonlocal amount_due
+        amount_due = amount_due_mapper.map(texts)
+
+    def _handle_leitura_atual(texts, _boxes) -> None:
+        nonlocal current_reading
+        current_reading = current_reading_mapper.map(texts)
+
+    def _handle_leitura_anterior(texts, _boxes) -> None:
+        nonlocal previous_reading
+        previous_reading = previous_reading_mapper.map(texts)
+
+    def _handle_proxima_leitura(texts, _boxes) -> None:
+        nonlocal next_reading
+        next_reading = next_reading_mapper.map(texts)
+
+    def _handle_dias_leitura(texts, _boxes) -> None:
+        nonlocal reading_days
+        reading_days = reading_days_mapper.map(texts)
+
+    def _handle_dados_pessoais(texts, _boxes) -> None:
+        nonlocal customer_name, customer_tax_number
+        customer_name, customer_tax_number = personal_data_mapper.map(texts)
+
+    def _handle_responsavel_iluminacao(texts, _boxes) -> None:
+        nonlocal lighting_responsible
+        lighting_responsible = lighting_responsible_mapper.map(texts)
+
+    def _handle_informacoes_tributarias(texts, boxes) -> None:
+        nonlocal tax_info_result
+        tax_info_result = tax_info.map(texts, boxes)
+
+    def _handle_mensagem_importante(texts, _boxes) -> None:
+        nonlocal important_message
+        important_message = important_message_mapper.map(texts)
+
+    handlers = {
+        "DESCRICAO_FATURAMENTO": _handle_descricao_faturamento,
+        "TRIBUTOS": _handle_tributos,
+        "CLASSIFICACAO_UNIDADE_CONSUMIDORA": _handle_classificacao_unidade,
+        "TIPO_FORNECIMENTO": _handle_tipo_fornecimento,
+        "NUMERO_INSTALACAO": _handle_numero_instalacao,
+        "NUMERO_CLIENTE": _handle_numero_cliente,
+        "PERIODO_FATURAMENTO": _handle_periodo_faturamento,
+        "DATA_VENCIMENTO": _handle_data_vencimento,
+        "VALOR_PAGAR": _handle_valor_pagar,
+        "LEITURA_ATUAL": _handle_leitura_atual,
+        "LEITURA_ANTERIOR": _handle_leitura_anterior,
+        "PROXIMA_LEITURA": _handle_proxima_leitura,
+        "DIAS_LEITURA": _handle_dias_leitura,
+        "DADOS_PESSOAIS": _handle_dados_pessoais,
+        "RESPONSAVEL_PELA_ILUMINACAO": _handle_responsavel_iluminacao,
+        "INFORMACOES_TRIBUTARIAS": _handle_informacoes_tributarias,
+        "MENSAGEM_IMPORTANTE": _handle_mensagem_importante,
+    }
+
+    for region in regions:
+        handler = handlers.get(region.description)
+        if not handler:
+            continue
+        coords = (region.x, region.y, region.width, region.height)
+        image_np = cropper.crop_ndarray(coords)
+        texts, boxes, _scores = run_ocr(ocr, image_np)
+        handler(texts, boxes)
 
     if important_message:
         tariff_flag_periods = tariff_flags.map(important_message)

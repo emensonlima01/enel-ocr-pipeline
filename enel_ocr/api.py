@@ -1,6 +1,7 @@
 # -*- coding: ascii -*-
 from __future__ import annotations
 
+import os
 from dataclasses import asdict
 from decimal import Decimal
 from flask import Flask, jsonify, request
@@ -10,8 +11,28 @@ from .ocr.engine import init_ocr
 from .pipeline import run_pipeline
 
 app = Flask(__name__)
-OCR = init_ocr()
-OCR_LOCK = Lock()
+
+_OCR = None
+_OCR_INIT_LOCK = Lock()
+_OCR_LOCK = Lock()
+_OCR_LOCK_ENABLED = os.getenv("OCR_LOCK", "1").lower() not in ("0", "false", "no")
+
+
+def _get_ocr():
+    global _OCR
+    if _OCR is None:
+        with _OCR_INIT_LOCK:
+            if _OCR is None:
+                _OCR = init_ocr()
+    return _OCR
+
+
+def _run_pipeline(pdf_bytes: bytes):
+    ocr = _get_ocr()
+    if _OCR_LOCK_ENABLED:
+        with _OCR_LOCK:
+            return run_pipeline(pdf_bytes, ocr)
+    return run_pipeline(pdf_bytes, ocr)
 
 
 @app.post("/invoice")
@@ -25,8 +46,7 @@ def invoice():
     if not pdf_bytes.startswith(b"%PDF"):
         return jsonify({"error": "invalid pdf"}), 400
 
-    with OCR_LOCK:
-        invoice_obj = run_pipeline(pdf_bytes, OCR)
+    invoice_obj = _run_pipeline(pdf_bytes)
 
     payload = asdict(invoice_obj)
     return jsonify(_serialize_decimals(payload))

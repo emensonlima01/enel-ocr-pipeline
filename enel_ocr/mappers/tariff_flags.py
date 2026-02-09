@@ -2,21 +2,14 @@
 from __future__ import annotations
 
 import re
-import unicodedata
-
 from ..models import TariffFlagPeriod
+from ._utils import normalize_text
 
 _COLOR_RANGE_RE = re.compile(
     r"(AMARELA|VERDE|VERMELHA)\s*:?\s*"
     r"(\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?)\s*(?:-|A|ATE)\s*"
     r"(\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?)"
 )
-
-
-def _normalize_text(value: str) -> str:
-    normalized = unicodedata.normalize("NFKD", value)
-    ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
-    return " ".join(ascii_text.upper().split())
 
 
 def _normalize_date(value: str) -> str:
@@ -31,7 +24,7 @@ def _normalize_date(value: str) -> str:
 def map(message: str) -> list[TariffFlagPeriod]:
     if not message:
         return []
-    normalized = _normalize_text(message)
+    normalized = normalize_text(message, case="upper")
     results: list[TariffFlagPeriod] = []
     seen = set()
 

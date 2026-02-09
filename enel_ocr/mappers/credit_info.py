@@ -2,15 +2,8 @@
 from __future__ import annotations
 
 import re
-import unicodedata
-
 from ..models import CreditInfo
-
-
-def _normalize_text(value: str) -> str:
-    normalized = unicodedata.normalize("NFKD", value)
-    ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
-    return " ".join(ascii_text.upper().split())
+from ._utils import normalize_text
 
 
 def _extract_kwh(text: str, pattern: str) -> float | None:
@@ -33,7 +26,7 @@ def map(message: str) -> CreditInfo:
             updated_kwh=0.0,
             expiring_kwh=0.0,
         )
-    normalized = _normalize_text(message)
+    normalized = normalize_text(message, case="upper")
     injected = _extract_kwh(
         normalized, r"ENERGIA INJETADA HFP NO M.S:\s*([0-9.,]+)\s*KWH"
     )

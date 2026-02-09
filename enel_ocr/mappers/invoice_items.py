@@ -1,11 +1,8 @@
 # -*- coding: ascii -*-
 from __future__ import annotations
 
-from decimal import Decimal, InvalidOperation
-import re
-import unicodedata
-
 from ..models import InvoiceItem
+from ._utils import build_items, group_items_by_row, normalize_text, parse_decimal
 
 COLUMN_ORDER = [
     "description",
@@ -49,98 +46,9 @@ HEADER_KEYWORDS = {
 }
 
 
-def _normalize_text(value: str) -> str:
-    normalized = unicodedata.normalize("NFKD", value)
-    ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
-    return " ".join(ascii_text.lower().split())
-
-
-def _median(values: list[float]) -> float:
-    if not values:
-        return 0.0
-    sorted_values = sorted(values)
-    middle = len(sorted_values) // 2
-    if len(sorted_values) % 2 == 1:
-        return sorted_values[middle]
-    return (sorted_values[middle - 1] + sorted_values[middle]) / 2
-
-
-def _normalize_box_points(box) -> list[tuple[float, float]] | None:
-    if box is None:
-        return None
-    if isinstance(box, (list, tuple)):
-        if not box:
-            return None
-        first = box[0]
-        if isinstance(first, (list, tuple)) and len(first) >= 2:
-            return [(point[0], point[1]) for point in box]
-        if isinstance(first, (int, float)):
-            if len(box) == 4:
-                x0, y0, x1, y1 = box
-                return [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
-            if len(box) == 8:
-                return [
-                    (box[0], box[1]),
-                    (box[2], box[3]),
-                    (box[4], box[5]),
-                    (box[6], box[7]),
-                ]
-    return None
-
-
-def _build_items(texts: list, boxes: list) -> list[dict]:
-    items = []
-    for index, (text, box) in enumerate(zip(texts, boxes)):
-        if not text or not box:
-            continue
-        points = _normalize_box_points(box)
-        if not points:
-            continue
-        xs = [point[0] for point in points]
-        ys = [point[1] for point in points]
-        x_min = min(xs)
-        x_max = max(xs)
-        y_min = min(ys)
-        y_max = max(ys)
-        items.append(
-            {
-                "index": index,
-                "text": text,
-                "x": x_min,
-                "x_center": (x_min + x_max) / 2,
-                "y_center": (y_min + y_max) / 2,
-                "height": y_max - y_min,
-            }
-        )
-    return items
-
-
-def _group_items_by_row(items: list[dict]) -> list[list[dict]]:
-    if not items:
-        return []
-    heights = [item["height"] for item in items if item["height"] > 0]
-    limit = max(8, _median(heights) * 0.6)
-    items_sorted = sorted(items, key=lambda item: item["y_center"])
-    rows: list[dict] = []
-    for item in items_sorted:
-        if not rows:
-            rows.append({"y_center": item["y_center"], "items": [item]})
-            continue
-        current = rows[-1]
-        if abs(item["y_center"] - current["y_center"]) <= limit:
-            current["items"].append(item)
-            total = len(current["items"])
-            current["y_center"] = (
-                (current["y_center"] * (total - 1)) + item["y_center"]
-            ) / total
-        else:
-            rows.append({"y_center": item["y_center"], "items": [item]})
-    return [sorted(row["items"], key=lambda item: item["x"]) for row in rows]
-
-
 def _row_like_header(row: list[dict]) -> bool:
     row_text = " ".join(item["text"] for item in row)
-    normalized = _normalize_text(row_text)
+    normalized = normalize_text(row_text)
     matches = [key for key in HEADER_KEYWORDS if key in normalized]
     has_description = any(
         key in normalized for key in ("descricao", "itens", "fatura")
@@ -150,7 +58,7 @@ def _row_like_header(row: list[dict]) -> bool:
 
 def _row_extends_header(row: list[dict]) -> bool:
     row_text = " ".join(item["text"] for item in row)
-    normalized = _normalize_text(row_text)
+    normalized = normalize_text(row_text)
     if any(char.isdigit() for char in normalized):
         return False
     return any(key in normalized for key in HEADER_KEYWORDS)
@@ -170,14 +78,14 @@ def _infer_column_positions(header_items: list[dict]) -> dict[str, float]:
         for item in header_items:
             if item["index"] in used:
                 continue
-            text = _normalize_text(item["text"])
+            text = normalize_text(item["text"])
             if any(keyword in text for keyword in keywords):
                 if column == "description":
                     matched = [
                         candidate
                         for candidate in header_items
                         if any(
-                            keyword in _normalize_text(candidate["text"])
+                            keyword in normalize_text(candidate["text"])
                             for keyword in keywords
                         )
                     ]
@@ -234,26 +142,6 @@ def _is_numeric_text(value: str) -> bool:
     return all(char in allowed for char in value.strip())
 
 
-def _parse_decimal(value: str) -> Decimal:
-    if not value:
-        return Decimal("0")
-    cleaned = re.sub(r"[^0-9,.\-]", "", value).strip()
-    if not cleaned:
-        return Decimal("0")
-    is_negative = cleaned.endswith("-")
-    if is_negative:
-        cleaned = cleaned[:-1].strip()
-    if "," in cleaned and "." in cleaned:
-        cleaned = cleaned.replace(".", "").replace(",", ".")
-    elif "," in cleaned:
-        cleaned = cleaned.replace(",", ".")
-    try:
-        parsed = Decimal(cleaned)
-        return -parsed if is_negative else parsed
-    except InvalidOperation:
-        return Decimal("0")
-
-
 def _is_numeric_row(items: list[dict]) -> bool:
     if not items:
         return False
@@ -281,8 +169,8 @@ def _is_description_code_row(items: list[dict], limit: float | None) -> bool:
 
 
 def map(texts: list, boxes: list) -> list[InvoiceItem]:
-    items = _build_items(texts, boxes)
-    rows = _group_items_by_row(items)
+    items = build_items(texts, boxes)
+    rows = group_items_by_row(items)
     header_index = _find_header_index(rows)
     if header_index is None:
         return []
@@ -314,7 +202,7 @@ def map(texts: list, boxes: list) -> list[InvoiceItem]:
             kept_units = []
             moved_tokens = []
             for token in unit_tokens:
-                normalized_token = _normalize_text(token)
+                normalized_token = normalize_text(token)
                 if normalized_token in allowed_units:
                     kept_units.append(token)
                 else:
@@ -326,7 +214,7 @@ def map(texts: list, boxes: list) -> list[InvoiceItem]:
                 ).strip()
             row_data["unit"] = " ".join(kept_units)
 
-        normalized_description = _normalize_text(row_data["description"])
+        normalized_description = normalize_text(row_data["description"])
         if not normalized_description:
             if result_rows:
                 result_rows[-1]["description"] = (
@@ -348,16 +236,16 @@ def map(texts: list, boxes: list) -> list[InvoiceItem]:
         InvoiceItem(
             description=row.get("description", "").upper(),
             unit=row.get("unit", "").upper(),
-            quantity=_parse_decimal(row.get("quantity", "")),
-            unit_price_with_taxes=_parse_decimal(
+            quantity=parse_decimal(row.get("quantity", "")),
+            unit_price_with_taxes=parse_decimal(
                 row.get("unit_price_with_taxes", "")
             ),
-            amount=_parse_decimal(row.get("amount", "")),
-            pis_cofins=_parse_decimal(row.get("pis_cofins", "")),
-            icms_tax_base=_parse_decimal(row.get("icms_tax_base", "")),
-            icms_rate=_parse_decimal(row.get("icms_rate", "")),
-            icms_amount=_parse_decimal(row.get("icms_amount", "")),
-            unit_rate=_parse_decimal(row.get("unit_rate", "")),
+            amount=parse_decimal(row.get("amount", "")),
+            pis_cofins=parse_decimal(row.get("pis_cofins", "")),
+            icms_tax_base=parse_decimal(row.get("icms_tax_base", "")),
+            icms_rate=parse_decimal(row.get("icms_rate", "")),
+            icms_amount=parse_decimal(row.get("icms_amount", "")),
+            unit_rate=parse_decimal(row.get("unit_rate", "")),
         )
         for row in result_rows
     ]

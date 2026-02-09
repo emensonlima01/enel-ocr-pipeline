@@ -24,4 +24,4 @@ COPY scripts ./scripts
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "gunicorn -b 0.0.0.0:8000 --preload --workers ${WEB_CONCURRENCY:-$(nproc)} --timeout 120 enel_ocr.api:app"]
+CMD ["sh", "-c", "gunicorn -b 0.0.0.0:8000 --workers ${WEB_CONCURRENCY:-$(nproc)} --threads ${WEB_THREADS:-1} --timeout 120 enel_ocr.api:app"]

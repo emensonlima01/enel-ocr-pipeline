@@ -2,18 +2,12 @@
 from __future__ import annotations
 
 import re
-import unicodedata
-
-
-def _normalize_text(value: str) -> str:
-    normalized = unicodedata.normalize("NFKD", value)
-    ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
-    return " ".join(ascii_text.lower().split())
+from ._utils import normalize_text
 
 
 def _extract_name(lines: list[str]) -> str:
     for line in lines:
-        normalized = _normalize_text(line)
+        normalized = normalize_text(line)
         if "cpf" in normalized or "cnpj" in normalized:
             continue
         if "cep" in normalized:
@@ -26,7 +20,7 @@ def _extract_name(lines: list[str]) -> str:
 
 def _extract_tax_number(lines: list[str]) -> str:
     for line in lines:
-        normalized = _normalize_text(line)
+        normalized = normalize_text(line)
         if "cpf" not in normalized and "cnpj" not in normalized:
             continue
         match = re.search(
